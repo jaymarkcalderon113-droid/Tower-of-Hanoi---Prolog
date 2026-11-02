@@ -1,0 +1,200 @@
+/*  style.css -- Tower of Hanoi
+
+    Colour contrast (WCAG 2.1 AA): body text #f2f5ff on #0b1020 is about
+    16:1; muted text about 9:1; button text #0b1020 on #ffe66d about 15:1;
+    every disk colour is light, so the dark digit printed on it and the disk
+    against the dark panel both exceed 7:1.  Disks also carry their number,
+    so colour is never the only cue.  Focus outlines are 3px white, and
+    animation is switched off for users who prefer reduced motion.
+
+    No colours or sizes come from user input; app.js only sets the CSS
+    custom properties --n and --size through the CSSOM (allowed by the CSP).
+*/
+
+:root {
+  --bg: #0b1020;
+  --panel: #141c36;
+  --panel-2: #1f2a52;
+  --text: #f2f5ff;
+  --muted: #b9c3e6;
+  --border: #6f7fb3;
+  --rod: #8b97c7;
+  --accent: #ffe66d;
+  --drop: #7dd3fc;
+  --error: #ff9aa2;
+  --ok: #6ee7b7;
+  --focus: #ffffff;
+  --disk-h: clamp(18px, 4.8vw, 30px);
+  --n: 3;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1rem clamp(0.75rem, 3vw, 2rem) 2rem;
+}
+
+h1 { margin: 0.5rem 0 0.25rem; font-size: clamp(1.6rem, 5vw, 2.3rem); }
+.lead { margin: 0 0 1rem; color: var(--muted); }
+
+/* ---- controls and stats ------------------------------------------------ */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.field { display: flex; flex-direction: column; gap: 0.25rem; }
+.field label { font-size: 0.9rem; color: var(--muted); }
+
+select, .btn {
+  font: inherit;
+  min-height: 2.75rem;            /* comfortable touch target */
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.6rem;
+  border: 2px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.btn { cursor: pointer; font-weight: 600; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #0b1020; }
+.btn:hover:not(:disabled) { border-color: var(--text); }
+.btn:disabled, select:disabled { opacity: 0.55; cursor: not-allowed; }
+
+select:focus-visible, .btn:focus-visible, .peg:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.stats { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin-bottom: 0.5rem; }
+.stat { margin: 0; color: var(--muted); }
+.stat strong { color: var(--text); font-size: 1.4rem; margin-left: 0.4rem; }
+
+.status { min-height: 1.6em; margin: 0.25rem 0 0.75rem; color: var(--muted); }
+.status.error { color: var(--error); font-weight: 600; }
+
+.win {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--ok);
+  border-radius: 0.75rem;
+  background: #123524;
+  color: #e9fff6;
+  font-weight: 700;
+  text-align: center;
+}
+.win[hidden] { display: none; }
+
+/* ---- board ------------------------------------------------------------- */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.4rem, 2vw, 1.5rem);
+}
+
+.peg {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: calc(var(--n) * (var(--disk-h) + 2px) + 5rem);
+  padding: 1.5rem 0.25rem 0.5rem;
+  border: 2px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--panel);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* the vertical rod */
+.peg::before {
+  content: "";
+  position: absolute;
+  top: 0.75rem;
+  bottom: 2.6rem;
+  left: 50%;
+  width: clamp(6px, 1.4vw, 10px);
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: var(--rod);
+}
+
+.peg[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent);
+}
+.peg.drop-target { border-color: var(--drop); background: var(--panel-2); }
+
+.stack {
+  position: relative;               /* paint disks above the rod */
+  z-index: 1;
+  display: flex;
+  flex-direction: column-reverse;   /* first child = bottom disk */
+  align-items: center;
+  width: 100%;
+}
+
+.peg-label {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.5rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.disk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--disk-h);
+  width: calc(28% + 72% * var(--size, 1) / var(--n));
+  margin-top: 2px;
+  border-radius: 999px;
+  color: #0b1020;
+  font-weight: 700;
+  font-size: clamp(0.7rem, 2.4vw, 0.95rem);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22);
+  transition: transform 0.12s ease;
+}
+
+.disk.can-drag { cursor: grab; }
+.disk.dragging { opacity: 0.5; }
+.peg[aria-pressed="true"] .disk.top { transform: translateY(-10px); }
+
+.d1 { background: #ff9aa2; }
+.d2 { background: #ffb86b; }
+.d3 { background: #ffe66d; }
+.d4 { background: #b8f27c; }
+.d5 { background: #6ee7b7; }
+.d6 { background: #7dd3fc; }
+.d7 { background: #a5b4fc; }
+.d8 { background: #f0abfc; }
+
+.help { margin-top: 1.25rem; color: var(--muted); font-size: 0.95rem; }
+
+@media (max-width: 480px) {
+  .controls .btn { flex: 1 1 8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disk { transition: none; }
+}

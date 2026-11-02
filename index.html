@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!--
+  index.html -- markup for the Tower of Hanoi game.
+
+  Structure only: the disks are created by app.js (with textContent, never
+  innerHTML).  There are no inline scripts or styles, so the strict
+  Content-Security-Policy sent by server.pl (script-src 'self';
+  style-src 'self') is satisfied.
+
+  Accessibility: landmark <main>, labelled controls, each peg is a focusable
+  role="button" with an aria-label that is refreshed after every move, and
+  #status is an aria-live region that announces moves, errors and the win.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tower of Hanoi</title>
+  <!-- Empty inline icon: stops the browser requesting /favicon.ico (a 404). -->
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>Tower of Hanoi</h1>
+      <p class="lead">Move every disk from peg A to peg C. You may move one disk at a
+        time, and a larger disk may never rest on a smaller one.</p>
+    </header>
+
+    <section class="controls" aria-label="Game controls">
+      <div class="field">
+        <label for="disk-count">Disks</label>
+        <select id="disk-count">
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+        </select>
+      </div>
+      <button type="button" id="reset-btn" class="btn">New game</button>
+      <button type="button" id="solve-btn" class="btn btn-primary">Auto-solve</button>
+    </section>
+
+    <section class="stats" aria-label="Score">
+      <p class="stat">Moves <strong id="move-count">0</strong></p>
+      <p class="stat">Minimum possible <strong id="min-moves">7</strong></p>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <!-- Visual win banner; the same text is announced through #status. -->
+    <p id="win" class="win" aria-hidden="true" hidden></p>
+
+    <div id="board" class="board" role="group" aria-label="Game board: three pegs, A, B and C">
+      <div class="peg" data-peg="A" role="button" tabindex="0" aria-pressed="false">
+        <div class="stack"></div>
+        <span class="peg-label" aria-hidden="true">A</span>
+      </div>
+      <div class="peg" data-peg="B" role="button" tabindex="0" aria-pressed="false">
+        <div class="stack"></div>
+        <span class="peg-label" aria-hidden="true">B</span>
+      </div>
+      <div class="peg" data-peg="C" role="button" tabindex="0" aria-pressed="false">
+        <div class="stack"></div>
+        <span class="peg-label" aria-hidden="true">C</span>
+      </div>
+    </div>
+
+    <p class="help">
+      <strong>How to play:</strong> click a peg to pick up its top disk, then click
+      another peg to drop it. You can also drag the top disk. Keyboard: Tab to a peg
+      and press Enter or Space, or press A, B or C. Escape cancels.
+    </p>
+  </main>
+</body>
+</html>
