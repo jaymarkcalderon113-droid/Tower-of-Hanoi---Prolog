@@ -1,22 +1,9 @@
 <!DOCTYPE html>
-<!--
-  index.html -- markup for the Tower of Hanoi game.
-
-  Structure only: the disks are created by app.js (with textContent, never
-  innerHTML).  There are no inline scripts or styles, so the strict
-  Content-Security-Policy sent by server.pl (script-src 'self';
-  style-src 'self') is satisfied.
-
-  Accessibility: landmark <main>, labelled controls, each peg is a focusable
-  role="button" with an aria-label that is refreshed after every move, and
-  #status is an aria-live region that announces moves, errors and the win.
--->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tower of Hanoi</title>
-  <!-- Empty inline icon: stops the browser requesting /favicon.ico (a 404). -->
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
@@ -52,7 +39,6 @@
 
     <p id="status" class="status" role="status" aria-live="polite"></p>
 
-    <!-- Visual win banner; the same text is announced through #status. -->
     <p id="win" class="win" aria-hidden="true" hidden></p>
 
     <div id="board" class="board" role="group" aria-label="Game board: three pegs, A, B and C">

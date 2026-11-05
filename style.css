@@ -1,16 +1,3 @@
-/*  style.css -- Tower of Hanoi
-
-    Colour contrast (WCAG 2.1 AA): body text #f2f5ff on #0b1020 is about
-    16:1; muted text about 9:1; button text #0b1020 on #ffe66d about 15:1;
-    every disk colour is light, so the dark digit printed on it and the disk
-    against the dark panel both exceed 7:1.  Disks also carry their number,
-    so colour is never the only cue.  Focus outlines are 3px white, and
-    animation is switched off for users who prefer reduced motion.
-
-    No colours or sizes come from user input; app.js only sets the CSS
-    custom properties --n and --size through the CSSOM (allowed by the CSP).
-*/
-
 :root {
   --bg: #0b1020;
   --panel: #141c36;
@@ -49,8 +36,6 @@ body {
 h1 { margin: 0.5rem 0 0.25rem; font-size: clamp(1.6rem, 5vw, 2.3rem); }
 .lead { margin: 0 0 1rem; color: var(--muted); }
 
-/* ---- controls and stats ------------------------------------------------ */
-
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -64,7 +49,7 @@ h1 { margin: 0.5rem 0 0.25rem; font-size: clamp(1.6rem, 5vw, 2.3rem); }
 
 select, .btn {
   font: inherit;
-  min-height: 2.75rem;            /* comfortable touch target */
+  min-height: 2.75rem;
   padding: 0.4rem 0.9rem;
   border-radius: 0.6rem;
   border: 2px solid var(--border);
@@ -101,8 +86,6 @@ select:focus-visible, .btn:focus-visible, .peg:focus-visible {
 }
 .win[hidden] { display: none; }
 
-/* ---- board ------------------------------------------------------------- */
-
 .board {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -125,7 +108,6 @@ select:focus-visible, .btn:focus-visible, .peg:focus-visible {
   -webkit-user-select: none;
 }
 
-/* the vertical rod */
 .peg::before {
   content: "";
   position: absolute;
@@ -145,10 +127,10 @@ select:focus-visible, .btn:focus-visible, .peg:focus-visible {
 .peg.drop-target { border-color: var(--drop); background: var(--panel-2); }
 
 .stack {
-  position: relative;               /* paint disks above the rod */
+  position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column-reverse;   /* first child = bottom disk */
+  flex-direction: column-reverse;
   align-items: center;
   width: 100%;
 }

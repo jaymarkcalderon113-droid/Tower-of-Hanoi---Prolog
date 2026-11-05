@@ -1,27 +1,15 @@
-// app.js -- Tower of Hanoi frontend (vanilla JavaScript)
-//
-// The browser does NOT know the rules. It only:
-//   1. sends the player's move to the Prolog server,
-//   2. draws whatever game state the server sends back.
-//
-// Safety: text is put on the page with textContent (never innerHTML),
-// so nothing the server sends can be run as HTML/JavaScript.
-
 'use strict';
 
 const PEGS = ['A', 'B', 'C'];
-let state = null;       // the latest game state from the server
-let selected = null;    // peg the player clicked first (or null)
-let busy = false;       // true while auto-solve is running
-let dragFrom = null;    // peg a disk is being dragged from (or null)
+let state = null;
+let selected = null;
+let busy = false;
+let dragFrom = null;
+let animating = false;
 
 const statusBox = document.getElementById('status');
 const winBox = document.getElementById('win');
 
-// ---- talking to the server -----------------------------------------
-
-// callApi(method, url, body): send a request, return the JSON answer.
-// If the server answers with an error (400, 409...), we throw its message.
 async function callApi(method, url, body) {
   const options = { method: method, headers: {} };
   if (body !== undefined) {
@@ -36,15 +24,11 @@ async function callApi(method, url, body) {
   return data;
 }
 
-// showMessage(text, isError): write a message under the buttons.
 function showMessage(text, isError) {
   statusBox.textContent = text;
   statusBox.classList.toggle('error', isError === true);
 }
 
-// ---- drawing ----------------------------------------------------------
-
-// draw(): redraw everything from `state`.
 function draw() {
   document.getElementById('move-count').textContent = state.moves;
   document.getElementById('min-moves').textContent = state.minMoves;
@@ -54,17 +38,17 @@ function draw() {
   for (const name of PEGS) {
     const pegDiv = document.querySelector('.peg[data-peg="' + name + '"]');
     const stack = pegDiv.querySelector('.stack');
-    stack.replaceChildren();                       // remove old disks
+    stack.replaceChildren();
 
-    const disks = state.pegs[name];                // bottom disk first
+    const disks = state.pegs[name];
     disks.forEach(function (size, index) {
       const disk = document.createElement('div');
-      disk.className = 'disk d' + size;            // d1..d8 = colour
-      disk.style.setProperty('--size', size);      // controls the width
-      disk.textContent = size;                     // the number on the disk
-      if (index === disks.length - 1) {            // top disk only
+      disk.className = 'disk d' + size;
+      disk.style.setProperty('--size', size);
+      disk.textContent = size;
+      if (index === disks.length - 1) {
         disk.classList.add('top');
-        disk.draggable = true;                     // can be dragged
+        disk.draggable = true;
       }
       stack.appendChild(disk);
     });
@@ -80,39 +64,108 @@ function draw() {
   }
 }
 
-// ---- playing ----------------------------------------------------------
-
-// move(from, to): ask the server to make the move, then redraw.
-async function move(from, to) {
-  try {
-    state = await callApi('POST', '/api/move', { from: from, to: to });
-    showMessage('Moved ' + from + ' to ' + to + '.', false);
-  } catch (error) {
-    showMessage(error.message, true);     // e.g. "illegal move ..."
+async function animateTransfer(sourceDisk, sourceRect, targetDisk) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
   }
-  draw();
+
+  const targetRect = targetDisk.getBoundingClientRect();
+  const ghost = sourceDisk.cloneNode(true);
+  ghost.removeAttribute('draggable');
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.style.position = 'fixed';
+  ghost.style.left = sourceRect.left + 'px';
+  ghost.style.top = sourceRect.top + 'px';
+  ghost.style.width = sourceRect.width + 'px';
+  ghost.style.height = sourceRect.height + 'px';
+  ghost.style.margin = '0';
+  ghost.style.zIndex = '1000';
+  ghost.style.pointerEvents = 'none';
+
+  const deltaX = targetRect.left - sourceRect.left;
+  const deltaY = targetRect.top - sourceRect.top;
+  const boardTop = document.getElementById('board').getBoundingClientRect().top;
+  const hoverTop = Math.max(12, boardTop - sourceRect.height - 20);
+  const liftY = hoverTop - sourceRect.top;
+  targetDisk.style.visibility = 'hidden';
+  document.body.appendChild(ghost);
+
+  try {
+    await ghost.animate([
+      { transform: 'translateY(0)' },
+      { transform: 'translateY(' + liftY + 'px)' }
+    ], {
+      duration: 260,
+      easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+    }).finished;
+    await ghost.animate([
+      { transform: 'translate(' + 0 + 'px, ' + liftY + 'px)' },
+      { transform: 'translate(' + deltaX + 'px, ' + liftY + 'px)' }
+    ], {
+      duration: 420,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }).finished;
+    await ghost.animate([
+      { transform: 'translate(' + deltaX + 'px, ' + liftY + 'px)' },
+      { transform: 'translate(' + deltaX + 'px, ' + deltaY + 'px)' }
+    ], {
+      duration: 260,
+      easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+    }).finished;
+  } finally {
+    ghost.remove();
+    targetDisk.style.visibility = '';
+  }
 }
 
-// clickPeg(name): first click picks a peg, second click drops on a peg.
+async function performMove(from, to) {
+  const sourcePeg = document.querySelector('.peg[data-peg="' + from + '"]');
+  const sourceDisk = sourcePeg.querySelector('.disk.top');
+  const sourceRect = sourceDisk ? sourceDisk.getBoundingClientRect() : null;
+
+  state = await callApi('POST', '/api/move', { from: from, to: to });
+  selected = null;
+  draw();
+
+  const targetPeg = document.querySelector('.peg[data-peg="' + to + '"]');
+  const targetDisk = targetPeg.querySelector('.disk.top');
+  if (sourceDisk && sourceRect && targetDisk) {
+    await animateTransfer(sourceDisk, sourceRect, targetDisk);
+  }
+  showMessage('Moved ' + from + ' to ' + to + '.', false);
+}
+
+async function move(from, to) {
+  if (busy || animating) { return; }
+  animating = true;
+  try {
+    await performMove(from, to);
+  } catch (error) {
+    showMessage(error.message, true);
+  } finally {
+    animating = false;
+    draw();
+  }
+}
+
 function clickPeg(name) {
-  if (busy) { return; }
+  if (busy || animating) { return; }
   if (selected === null) {
-    selected = name;                      // pick up
+    selected = name;
     draw();
   } else {
     const from = selected;
-    selected = null;                      // put down
+    selected = null;
     if (from === name) {
-      draw();                             // clicked the same peg: cancel
+      draw();
     } else {
       move(from, name);
     }
   }
 }
 
-// newGame(): start a fresh game with the chosen number of disks.
 async function newGame() {
-  if (busy) { return; }
+  if (busy || animating) { return; }
   const n = parseInt(document.getElementById('disk-count').value, 10);
   selected = null;
   try {
@@ -124,17 +177,15 @@ async function newGame() {
   draw();
 }
 
-// autoSolve(): get the solution from Prolog and play it step by step.
 async function autoSolve() {
-  if (busy) { return; }
+  if (busy || animating) { return; }
   busy = true;
   try {
-    await newGame2();                                   // start fresh
+    await newGame2();
     const plan = await callApi('GET', '/api/solve?disks=' + state.disks);
     for (const step of plan.moves) {
-      await new Promise(function (done) { setTimeout(done, 400); });  // pause
-      state = await callApi('POST', '/api/move', { from: step.from, to: step.to });
-      draw();
+      await new Promise(function (done) { setTimeout(done, 400); });
+      await performMove(step.from, step.to);
     }
     showMessage('Auto-solve finished!', false);
   } catch (error) {
@@ -143,20 +194,16 @@ async function autoSolve() {
   busy = false;
 }
 
-// helper for autoSolve: reset with the current disk count
 async function newGame2() {
   state = await callApi('POST', '/api/reset', { disks: state.disks });
   draw();
 }
-
-// ---- connecting the page to the functions above -------------------------
 
 for (const name of PEGS) {
   const pegDiv = document.querySelector('.peg[data-peg="' + name + '"]');
 
   pegDiv.addEventListener('click', function () { clickPeg(name); });
 
-  // keyboard: Enter or Space acts like a click
   pegDiv.addEventListener('keydown', function (event) {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -164,16 +211,15 @@ for (const name of PEGS) {
     }
   });
 
-  // drag and drop: the dragged disk's source peg is remembered
   pegDiv.addEventListener('dragstart', function () {
-    if (!busy) { dragFrom = name; }
+    if (!busy && !animating) { dragFrom = name; }
   });
   pegDiv.addEventListener('dragover', function (event) {
-    event.preventDefault();               // allow dropping here
+    event.preventDefault();
   });
   pegDiv.addEventListener('drop', function (event) {
     event.preventDefault();
-    if (dragFrom !== null && dragFrom !== name && !busy) {
+    if (dragFrom !== null && dragFrom !== name && !busy && !animating) {
       selected = null;
       move(dragFrom, name);
     }
@@ -185,7 +231,6 @@ document.getElementById('reset-btn').addEventListener('click', newGame);
 document.getElementById('disk-count').addEventListener('change', newGame);
 document.getElementById('solve-btn').addEventListener('click', autoSolve);
 
-// start: load the current game from the server
 (async function start() {
   try {
     state = await callApi('GET', '/api/state');
